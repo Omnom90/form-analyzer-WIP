@@ -45,3 +45,23 @@ let users  = [
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+// delete route
+app.delete('/user/:id', (req, res, next) => {
+    console.log('Attempting to delete user: ', req.params.id);
+    next();
+}, (req, res, next) => {
+    const username = req.params.id;
+
+    const userIndex = users.findIndex(u => u.users === username);
+
+    if (userIndex === -1) {
+        return res.status(404).send(`User ${username} not found`);
+    }
+
+    const deletedUser = users.splice(userIndex, 1);
+
+    res.status(200).json({
+        message: `User deleted successfully`,
+        deleted: deletedUser[0]
+    });
+});
