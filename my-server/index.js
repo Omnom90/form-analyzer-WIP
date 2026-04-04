@@ -45,6 +45,26 @@ let users  = [
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
+//put route
+app.put('/user/:id', (req, res) => {
+    const userId = req.params.id;
+    const updatedData = req.body;
+
+    const userIndex = users.findIndex(user => user.users === userId);
+
+    if (userIndex === -1) {
+        return res.status(404).json({ message: `User '${userId}' not found` });
+    }
+
+    users[userIndex] = { ...users[userIndex], ...updatedData };
+
+    res.status(200).json({
+        message: `User '${userId}' updated successfully`,
+        updatedUser: users[userIndex]
+    });
+});
+
 // delete route
 app.delete('/user/:id', (req, res, next) => {
     console.log('Attempting to delete user: ', req.params.id);
@@ -65,3 +85,4 @@ app.delete('/user/:id', (req, res, next) => {
         deleted: deletedUser[0]
     });
 });
+
