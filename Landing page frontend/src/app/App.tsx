@@ -21,12 +21,15 @@ import {
   DescriptionOutlined,
   InsightsOutlined,
 } from '@mui/icons-material';
+import { usePoseDetection, PoseResult } from './usePoseDetection';
 
 export default function App() {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [error, setError] = useState<string>('');
   const [isPaused, setIsPaused] = useState(false);
+  const [lastPoseData, setLastPoseData] = useState<PoseResult | null>(null);
   
   // Session timer
   const [sessionTime, setSessionTime] = useState(0);
@@ -77,6 +80,17 @@ export default function App() {
       message: 'Valgus collapse detected at depth. Cue: "Knees out" during ascent phase.' 
     }
   ]);
+
+  // Initialize pose detection
+  usePoseDetection({
+    videoRef,
+    canvasRef,
+    enabled: cameraActive && !isPaused,
+    onPoseDetected: (result) => {
+      setLastPoseData(result);
+      sendPoseDataToBackend(result);
+    }
+  });
 
   useEffect(() => {
     startCamera();
@@ -132,6 +146,30 @@ export default function App() {
       const stream = videoRef.current.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
       setCameraActive(false);
+    }
+  };
+
+  const sendPoseDataToBackend = async (poseData: PoseResult) => {
+    try {
+      const payload = {
+        landmarks: poseData.landmarks,
+        angles: poseData.angles,
+        timestamp: poseData.timestamp,
+        sessionTime,
+        metrics
+      };
+
+      const response = await fetch('http://localhost:3000/api/pose', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        console.error('Backend response error:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Failed to send pose data:', error);
     }
   };
 
@@ -269,6 +307,15 @@ export default function App() {
           <div className="flex-[0_0_55%] p-6 flex flex-col gap-4">
             {/* Video Container */}
             <div className="flex-1 bg-slate-900 rounded-xl overflow-hidden border border-slate-800 relative shadow-2xl">
+              {/* Pose Canvas Overlay */}
+              {cameraActive && (
+                <canvas
+                  ref={canvasRef}
+                  className="absolute inset-0 w-full h-full pointer-events-none"
+                  style={{ zIndex: 15 }}
+                />
+              )}
+
               {error ? (
                 <div className="absolute inset-0 flex flex-col items-center justify-center p-12 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950">
                   {/* Error State Card */}

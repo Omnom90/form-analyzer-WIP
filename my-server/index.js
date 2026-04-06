@@ -49,6 +49,37 @@ app.post("/api/chat", async (req, res) =>{
    }
 });
 
+// MediaPipe Pose Detection Endpoint
+app.post("/api/pose", async (req, res) => {
+  try {
+    const { landmarks, angles, timestamp, sessionTime, metrics } = req.body;
+
+    // Log pose data for now
+    console.log(`[${new Date(timestamp).toISOString()}] Pose detected:`, {
+      leftKnee: angles.leftKnee,
+      rightKnee: angles.rightKnee,
+      leftHip: angles.leftHip,
+      rightHip: angles.rightHip,
+      sessionTime: sessionTime
+    });
+
+    // Here you can:
+    // 1. Store pose data in a database
+    // 2. Analyze biomechanics and generate feedback
+    // 3. Track rep counting and form quality
+    // 4. Send real-time feedback back to frontend
+
+    res.json({
+      status: 'ok',
+      message: 'Pose data received',
+      timestamp
+    });
+  } catch (error) {
+    console.error('Pose endpoint error:', error);
+    res.status(500).json({ error: 'Failed to process pose data' });
+  }
+});
+
 app.post('/', (req,res, next) =>{
     const newUser = req.body;
     users.push(newUser);
