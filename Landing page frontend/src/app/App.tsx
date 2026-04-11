@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   VideocamOutlined,
   MonitorHeartOutlined,
@@ -20,6 +20,7 @@ import {
   BarChartOutlined,
   DescriptionOutlined,
   InsightsOutlined,
+  ResetTvOutlined,
 } from '@mui/icons-material';
 import { usePoseDetection, PoseResult } from './usePoseDetection';
 
@@ -48,107 +49,14 @@ export default function App() {
   });
 
   // AI feedback items
-  const [feedbackItems, setFeedbackItems] = useState([
-    { 
-      time: '00:34:12', 
-      severity: 'warning', 
-      title: 'Knee Alignment Warning',
-      message: 'Minor forward knee travel detected on rep 7. Push through heels to maintain proper tracking.' 
-    },
-    { 
-      time: '00:33:58', 
-      severity: 'good', 
-      title: 'Excellent Depth',
-      message: 'Depth consistent across all reps. Maintaining parallel break with proper hip crease position.' 
-    },
-    { 
-      time: '00:33:45', 
-      severity: 'critical', 
-      title: 'Bar Path Deviation',
-      message: 'Bar path shifted 2.3cm forward. Reset shoulder position and engage upper back to maintain vertical path.' 
-    },
-    { 
-      time: '00:33:30', 
-      severity: 'good', 
-      title: 'Core Stability',
-      message: 'Brace pressure optimal. Intra-abdominal stability maintained throughout the lift.' 
-    },
-    { 
-      time: '00:33:15', 
-      severity: 'warning', 
-      title: 'Knees Caving In',
-      message: 'Valgus collapse detected at depth. Cue: "Knees out" during ascent phase.' 
-    }
-  ]);
-
-  // Initialize pose detection
-  usePoseDetection({
-    videoRef,
-    canvasRef,
-    enabled: cameraActive && !isPaused,
-    onPoseDetected: (result) => {
-      setLastPoseData(result);
-      sendPoseDataToBackend(result);
-    }
-  });
-
-  useEffect(() => {
-    startCamera();
-    return () => stopCamera();
-  }, []);
-
-  // Session timer
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (cameraActive && !isPaused) {
-        setSessionTime(prev => prev + 1);
-      }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [cameraActive, isPaused]);
-
-  // Simulate real-time metric updates
-  useEffect(() => {
-    if (!cameraActive) return;
-    
-    const interval = setInterval(() => {
-      setMetrics(prev => ({
-        ...prev,
-        heartRate: 140 + Math.floor(Math.random() * 8),
-        formScore: 85 + Math.floor(Math.random() * 10),
-        rangeOfMotion: 92 + Math.floor(Math.random() * 6)
-      }));
-    }, 2000);
-    
-    return () => clearInterval(interval);
-  }, [cameraActive]);
-
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'user', width: 1920, height: 1080 },
-        audio: false 
-      });
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        setCameraActive(true);
-        setError('');
-      }
-    } catch (err) {
-      setError('CAMERA_ACCESS_DENIED');
-      console.error('Camera error:', err);
-    }
+  type FeedbackItem = {
+    time: string;
+    severity: 'good' | 'warning' | 'critical';
+    title: string;
+    message: string;
   };
 
-  const stopCamera = () => {
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-      setCameraActive(false);
-    }
-  };
-
+  
   const exerciseConfig = {
   squat: {
     angles: ['rightKnee', 'leftKnee', 'rightHip', 'leftHip'],
@@ -182,84 +90,31 @@ export default function App() {
   
  
 };
+  
+const inBottomPositionRef = useRef(false);
+const repsThisSetRef = useRef(0);
+const setDataRef = useRef<any[]>([]);
+const currentSetRef = useRef(1);
 
-  const calculateAverage = (numbers: (number | null)[]) : number => {
+const [repsThisSet, setRepsThisSet] = useState(0);
+const [currentSet, setCurrentSet] = useState(1);
+
+const [exercise, setExercise] = useState<'squat' | 'benchPress' | 'deadlift'>('squat');
+  
+  
+const neededAngles = exerciseConfig[exercise].angles;
+
+const [feedbackItems, setFeedbackItems] = useState<FeedbackItem[]>([]);
+
+
+const calculateAverage = (numbers: (number | null)[]) : number => {
     const nums = numbers.filter(n => n !== null) as number[];
     if (nums.length === 0) return 0;
     const avg = nums.reduce((acc, val) => acc + val, 0) / nums.length;
     return avg;
-  };
+};
 
-  const exercise: 'squat' | 'benchPress' | 'deadlift' = 'squat';
-  const neededAngles = exerciseConfig[exercise].angles;
-
-
-
- 
-
-  const [repsThisSet, setRepsThisSet] = useState(0);
-  const [setData, setSetData] = useState<any[]>([]);
-  const [previousKneeAngle, setPreviousKneeAngle] = useState(null);
-  const [inBottomPosition, setInBottomPosition] = useState(false);
-  
-  const sendPoseDataToBackend = async (poseData: PoseResult) => {
-    
-    const config = exerciseConfig[exercise];
-    const benchmarks = config.repDetection;
-    const angles = config.angles;
-    
-    angles.forEach(angle => {
-      const angleValue = poseData.angles[angle as keyof typeof poseData.angles];
-      if(angleValue != null && angleValue < benchmarks[`${angle}BottomAngle` as keyof typeof benchmarks] && !inBottomPosition){
-        setInBottomPosition(true);
-      }
-      if(angleValue != null && angleValue > benchmarks[`${angle}TopAngle` as keyof typeof benchmarks] && inBottomPosition){
-        setInBottomPosition(false);
-        setRepsThisSet(prev => prev + 1);
-      }
-    })
- 
-
-    setSetData(prev => [...prev, poseData]);
-
-    if(repsThisSet >= 8){
-      try {
-        const averageAngles: Record<string, number> = {};
-        neededAngles.forEach(angle => {
-          averageAngles[angle] = calculateAverage(
-            setData.map(d => d.angles[angle as keyof typeof d.angles])
-          );
-        });
-
-        const payload = {
-          setNumber: 3,
-          repsCompleted: repsThisSet,
-          averageAngles: averageAngles
-        };
-
-        const response = await fetch('http://localhost:3000/api/pose', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-
-        if (!response.ok) {
-          console.error('Backend response error:', response.statusText);
-        }
-      } catch (error) {
-        console.error('Failed to send pose data:', error);
-      }
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  };
-
-  const getSeverityColor = (severity: string) => {
+const getSeverityColor = (severity: string) => {
     switch (severity) {
       case 'good': return 'border-emerald-500 bg-emerald-50';
       case 'warning': return 'border-amber-500 bg-amber-50';
@@ -295,6 +150,162 @@ export default function App() {
     }
   };
 
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: 'user', width: 1920, height: 1080 },
+        audio: false 
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        setCameraActive(true);
+        setError('');
+      }
+    } catch (err) {
+      setError('CAMERA_ACCESS_DENIED');
+      console.error('Camera error:', err);
+    }
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach(track => track.stop());
+      setCameraActive(false);
+    }
+  };
+
+  const sendPoseDataToBackend = useCallback(async (poseData: PoseResult) => {
+    
+    const config = exerciseConfig[exercise];
+    const benchmarks = config.repDetection;
+    const angles = config.angles;
+    
+    angles.forEach(angle => {
+      const angleValue = poseData.angles[angle as keyof typeof poseData.angles];
+      if(angleValue != null && angleValue < benchmarks[`${angle}BottomAngle` as keyof typeof benchmarks] && !inBottomPositionRef.current){
+        inBottomPositionRef.current = true;
+      }
+      if(angleValue != null && angleValue > benchmarks[`${angle}TopAngle` as keyof typeof benchmarks] && inBottomPositionRef.current){
+        inBottomPositionRef.current = false;
+        repsThisSetRef.current += 1;
+        setRepsThisSet(repsThisSetRef.current);
+      }
+    });
+ 
+
+    setDataRef.current.push(poseData);
+
+    if(repsThisSetRef.current >= 8){
+      try {
+        const averageAngles: Record<string, number> = {};
+        neededAngles.forEach(angle => {
+          averageAngles[angle] = calculateAverage(
+            setDataRef.current.map(d => d.angles[angle as keyof typeof d.angles])
+          );
+        });
+
+        const payload = {
+          setNumber: currentSetRef.current,
+          repsCompleted: repsThisSetRef.current,
+          exercise: exercise,
+          averageAngles: averageAngles
+        };
+
+        const response = await fetch('http://localhost:3000/api/pose', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+          console.log("Response status:", response.status);
+       
+
+          const data = await response.json();
+          console.log("Feedback received:", data.feedback);
+
+          setFeedbackItems(prev => [...prev, {
+            time: formatTime(sessionTime),
+            severity: 'good',  // Just default to 'good' or parse the text
+            title: `Set ${currentSetRef.current} Feedback`,
+            message: data.feedback  
+  }])
+        if (!response.ok) {
+          console.error('Backend response error:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Failed to send pose data:', error);
+      }
+
+      repsThisSetRef.current = 0;
+      setRepsThisSet(0);
+      currentSetRef.current += 1;
+      setCurrentSet(currentSetRef.current)
+      setDataRef.current = [];
+    }
+  }, [exercise]);
+
+  const handlePoseDetected = useCallback((result : PoseResult) => {
+    setLastPoseData(result);
+    sendPoseDataToBackend(result);
+  }, [sendPoseDataToBackend]);
+  const formatTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+
+  // Initialize pose detection
+  usePoseDetection({
+    videoRef,
+    canvasRef,
+    enabled: cameraActive && !isPaused,
+    onPoseDetected: handlePoseDetected
+  });
+
+  useEffect(() => {
+    startCamera();
+    return () => stopCamera();
+  }, []);
+
+  // Session timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (cameraActive && !isPaused) {
+        setSessionTime(prev => prev + 1);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cameraActive, isPaused]);
+
+  // Simulate real-time metric updates
+  useEffect(() => {
+    if (!cameraActive) return;
+    
+    const interval = setInterval(() => {
+      setMetrics(prev => ({
+        ...prev,
+        heartRate: 140 + Math.floor(Math.random() * 8),
+        formScore: 85 + Math.floor(Math.random() * 10),
+        rangeOfMotion: 92 + Math.floor(Math.random() * 6)
+      }));
+    }, 2000);
+    
+    return () => clearInterval(interval);
+  }, [cameraActive]);
+
+  
+
+
+
+ 
+
+
+
+  
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200" style={{ fontFamily: 'Inter, -apple-system, system-ui, sans-serif' }}>
       {/* Subtle texture overlay */}
@@ -324,8 +335,16 @@ export default function App() {
 
           {/* Center Info */}
           <div className="flex flex-col items-center">
-            <div className="text-base font-semibold text-white uppercase tracking-wide">Barbell Back Squat</div>
-            <div className="text-xs text-slate-400">Set 3 of 5 • Workout: Lower Body Strength A</div>
+            <select
+              value={exercise}
+              onChange={(e) => setExercise(e.target.value as 'squat' | 'benchPress' | 'deadlift')}
+              className="text-base font-semibold text-white uppercase tracking-wide bg-slate-800 border border-cyan-500/30 rounded px-3 py-1.5 hover:border-cyan-500/60 transition-colors cursor-pointer"
+            >
+              <option value="squat">Barbell Back Squat</option>
+              <option value="benchPress">Bench Press</option>
+              <option value="deadlift">Deadlift</option>
+            </select>
+            <div className="text-xs text-slate-400 mt-1">Set 3 of 5 • A</div>
           </div>
 
           {/* Right Section */}
@@ -599,8 +618,12 @@ export default function App() {
             </button>
             <div className="h-10 w-px bg-slate-800 mx-2" />
             <div className="text-sm text-slate-400">
-              <span className="text-cyan-400 font-semibold">Set 3</span> / 5
+              <span className="text-cyan-400 font-semibold">Set {currentSet}</span> / 5
             </div>
+          </div>
+
+          <div className="text-sm text-slate-400">
+            <span className="text-cyan-400 font-semibold">Reps: {repsThisSet}</span> / 8
           </div>
 
           {/* Center: Progress */}

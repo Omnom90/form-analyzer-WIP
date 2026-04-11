@@ -1,0 +1,14 @@
+{
+  "name": "rishfits",
+  "version": "1.0.0",
+  "description": "RishFits - AI-powered exercise form analysis",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"cd my-server && node index.js\" \"cd Landing\\ page\\ frontend && npm run dev\"",
+    "server": "cd my-server && npm start",
+    "client": "cd Landing\\ page\\ frontend && npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
