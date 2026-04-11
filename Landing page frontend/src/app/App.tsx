@@ -61,30 +61,46 @@ export default function App() {
   squat: {
     angles: ['rightKnee', 'leftKnee', 'rightHip', 'leftHip'],
     repDetection: {
-      kneeBottomAngle: 100,      // knees bent at bottom
-      kneeTopAngle: 140,        // knees extended at top
-      hipBottomAngle: 100,       // hips bent at bottom
-      hipTopAngle: 50         // hips extended at top
+      rightKneeBottomAngle: 100,      // knees bent at bottom
+      rightKneeTopAngle: 140,   
+      leftKneeBottomAngle: 100,      // knees bent at bottom
+      leftKneeTopAngle: 140,         // knees extended at top
+      rightHipBottomAngle: 100,       // hips bent at bottom
+      rightHipTopAngle: 50,     
+      leftHipBottomAngle: 100,       // hips bent at bottom
+      leftHipTopAngle: 50           // hips extended at top
     }
   },
   
   benchPress: {
     angles: ['rightElbow', 'leftElbow', 'rightShoulder', 'leftShoulder'],
     repDetection: {
-      elbowBottomAngle: 90,     // elbows bent at bottom of press
-      elbowTopAngle: 170,       // elbows extended at top
-      shoulderBottomAngle: 80,  // shoulders at bottom
-      shoulderTopAngle: 160     // shoulders at top
+      rightElbowBottomAngle: 90,
+    rightElbowTopAngle: 170,
+    leftElbowBottomAngle: 90,
+    leftElbowTopAngle: 170,
+    rightShoulderBottomAngle: 80,
+    rightShoulderTopAngle: 160,
+    leftShoulderBottomAngle: 80,
+    leftShoulderTopAngle: 160,
     }
   },
   
   deadlift: {
     angles: ['rightKnee', 'leftKnee', 'rightHip', 'leftHip', 'rightAnkle', 'leftAnkle'],
     repDetection: {
-      kneeBottomAngle: 130,      // knees bent at start (deep bend)
-      kneeTopAngle: 170,        // knees extended at lockout
-      hipBottomAngle: 70,       // hips low at start
-      hipTopAngle: 170          // hips extended at lockout
+        rightKneeBottomAngle: 130,
+        rightKneeTopAngle: 170,
+        leftKneeBottomAngle: 130,
+        leftKneeTopAngle: 170,
+        rightHipBottomAngle: 70,
+        rightHipTopAngle: 170,
+        leftHipBottomAngle: 70,
+        leftHipTopAngle: 170,
+        rightAnkleBottomAngle: 70,
+        rightAnkleTopAngle: 130,
+        leftAnkleBottomAngle: 70,
+        leftAnkleTopAngle: 130,   // hips extended at lockout
     }
   },
   
@@ -273,7 +289,7 @@ const getSeverityColor = (severity: string) => {
     videoRef,
     canvasRef,
     enabled: cameraActive && !isPaused,
-    onPoseDetected: handlePoseDetected
+    onPoseDetected: (result) => handlePoseDetected(result)
   });
 
   useEffect(() => {

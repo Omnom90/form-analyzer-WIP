@@ -82,7 +82,7 @@ export function usePoseDetection({
 
   // Initialize MediaPipe
   useEffect(() => {
-    if (!enabled) return;
+    //if (!enabled) return;
 
     const initMediaPipe = async () => {
       try {
