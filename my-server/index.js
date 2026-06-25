@@ -4,15 +4,15 @@ const express = require('express');
 const app = express();
 const morgan = require('morgan');
 const cors = require('cors');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+const OpenAI = require('openai');
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(cors());
 app.use(morgan('dev'));
 
-const geminiKey = process.env.GEMINI_API_KEY;
-const genAI = geminiKey ? new GoogleGenerativeAI(geminiKey) : null;
+const groqKey = process.env.GROQ_API_KEY;
+const groq = groqKey ? new OpenAI({ apiKey: groqKey, baseURL: 'https://api.groq.com/openai/v1' }) : null;
 
 app.get('/', (req, res) => {
     res.json('hi guys, server is running! welcome to the main page');
@@ -71,8 +71,8 @@ app.delete('/user/:id', (req, res, next) => {
 app.post("/api/pose", async (req, res) => {
     console.log("Received payload:", req.body);
     try {
-        if (!genAI) {
-            return res.status(503).json({ error: "GEMINI_API_KEY is not set in my-server/.env" });
+        if (!groq) {
+            return res.status(503).json({ error: "GROQ_API_KEY is not set in my-server/.env" });
         }
 
         const { setNumber, repsCompleted, exercise, averageAngles } = req.body;
@@ -89,13 +89,12 @@ ${anglesList}
 
 Give 2-3 sentences of feedback: one positive observation, then one specific improvement cue for the next set. Plain language, no jargon.`;
 
-        const model = genAI.getGenerativeModel({
-            model: "gemini-2.0-flash",
-            generationConfig: { maxOutputTokens: 200 }
+        const completion = await groq.chat.completions.create({
+            model: 'llama-3.3-70b-versatile',
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 200,
         });
-
-        const result = await model.generateContent(prompt);
-        const feedback = result.response.text();
+        const feedback = completion.choices[0].message.content;
 
         res.json({ feedback });
     } catch (error) {

@@ -104,7 +104,7 @@ export default function NextStepsPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
             {[
               { name: 'MediaPipe Tasks Vision', role: 'Pose landmark detection (33 points, real-time)' },
-              { name: 'Google Gemini 2.0 Flash', role: 'AI coaching via joint angle analysis' },
+              { name: 'AI (prompt engineered by Rishane)', role: 'AI coaching via joint angle analysis' },
               { name: 'React + TypeScript', role: 'Frontend framework' },
               { name: 'Vite', role: 'Build tool and dev server' },
               { name: 'Express.js', role: 'Backend API server' },

@@ -611,7 +611,7 @@ export default function WorkoutPage() {
             {feedbackItems.length === 0 && !cameraActive ? (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '32px 16px', opacity: 0.4 }}>
                 <InsightsOutlined style={{ fontSize: 36, color: '#4ade80', marginBottom: '12px' }} />
-                <p style={{ fontSize: '13px', color: 'rgba(224,235,224,0.6)', lineHeight: 1.6 }}>Complete a set to receive Gemini-powered form feedback.</p>
+                <p style={{ fontSize: '13px', color: 'rgba(224,235,224,0.6)', lineHeight: 1.6 }}>Complete a set to receive AI-powered form feedback.</p>
               </div>
             ) : (
               <>
@@ -664,7 +664,7 @@ export default function WorkoutPage() {
           {/* Panel footer */}
           <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(74,222,128,0.07)', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <BoltOutlined style={{ fontSize: 13, color: '#fbbf24' }} />
-            <span style={{ fontSize: '11px', color: 'rgba(224,235,224,0.25)' }}>Gemini 2.0 Flash · Local video processing</span>
+            <span style={{ fontSize: '11px', color: 'rgba(224,235,224,0.25)' }}>AI prompt engineered by Rishane · Local video processing</span>
           </div>
         </aside>
       </div>

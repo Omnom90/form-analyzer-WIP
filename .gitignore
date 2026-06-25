@@ -19,6 +19,7 @@ Landing page frontend/node_modules/.vite/
 # ── Internal project docs (not for public) ────────────────────────────────────
 HANDOFF.md
 CHANGES.md
+backend-description-and-future-integration.md
 
 # ── OS / editor artifacts ──────────────────────────────────────────────────────
 .DS_Store

@@ -282,7 +282,7 @@ function HowItWorksSection() {
     {
       number: '03',
       title: 'Get your coaching',
-      body: 'After each set, Gemini reviews your average joint angles and gives you 2–3 sentences of specific, actionable feedback.',
+      body: 'After each set, an AI reviews your average joint angles and gives you 2–3 sentences of specific, actionable feedback.',
     },
   ];
 
@@ -384,7 +384,7 @@ function WhySection() {
     {
       icon: '🧠',
       title: 'Honest AI coaching',
-      body: 'Powered by Google Gemini. Feedback is grounded in your actual joint angles — not generic advice pulled from a database.',
+      body: 'Prompt engineered by Rishane. Feedback is grounded in your actual joint angles — not generic advice pulled from a database.',
     },
   ];
 
