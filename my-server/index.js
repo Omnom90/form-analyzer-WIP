@@ -5,7 +5,11 @@ const app = express();
 const morgan = require('morgan');
 const cors = require('cors');
 const OpenAI = require('openai');
+const { RateLimiterMemory } = require('rate-limiter-flexible');
 const PORT = process.env.PORT || 3000;
+
+const perIpLimiter = new RateLimiterMemory({ points: 5, duration: 300 });
+const globalLimiter = new RateLimiterMemory({ points: 25, duration: 60 });
 
 app.use(express.json());
 app.use(cors());
@@ -75,22 +79,90 @@ app.post("/api/pose", async (req, res) => {
             return res.status(503).json({ error: "GROQ_API_KEY is not set in my-server/.env" });
         }
 
+        try {
+            await perIpLimiter.consume(req.ip);
+        } catch {
+            return res.status(429).json({ error: "Too many requests. Take a breather and try again." });
+        }
+        try {
+            await globalLimiter.consume('global');
+        } catch {
+            return res.status(429).json({ error: "Server is busy. Try again in a moment." });
+        }
+
         const { setNumber, repsCompleted, exercise, averageAngles } = req.body;
-        const anglesList = Object.entries(averageAngles)
-            .map(([angleName, value]) => `  ${angleName}: ${Number(value).toFixed(1)}°`)
-            .join('\n');
+        const f = (v) => v != null ? `${Number(v).toFixed(1)}°` : 'not tracked';
 
-        const prompt = `You are a personal trainer giving quick, encouraging form feedback after a set.
+        const prompt = exercise === 'pushup' ? `You are Rishane Oak coaching someone through a push-up. Same direct, honest approach.
 
-Set ${setNumber} — ${exercise}
-Reps completed: ${repsCompleted}
-Average joint angles:
-${anglesList}
+Set ${setNumber} — Reps completed: ${repsCompleted}
 
-Give 2-3 sentences of feedback: one positive observation, then one specific improvement cue for the next set. Plain language, no jargon.`;
+USER'S MOVEMENT DATA:
+- Left elbow: ${f(averageAngles.leftElbow)}
+- Right elbow: ${f(averageAngles.rightElbow)}
+- Elbow asymmetry (left vs right): ${Math.abs((averageAngles.leftElbow ?? 0) - (averageAngles.rightElbow ?? 0)).toFixed(1)}°
+- Elbow flare angle: not tracked
+- Hip position: not tracked
+- Chest depth: not tracked
+- Shoulder elevation: not tracked
+
+COACHING LOGIC:
+1. ASSESS OVERALL FORM QUALITY:
+   - Perfect = 45° elbows, chest near floor, straight line, shoulders relaxed
+   - Good = minor alignment issue but strong, controlled movement
+   - Okay = multiple small compensations, needs focus
+   - Poor = sagging hips, flared elbows, or half reps
+
+2. HONEST ASSESSMENT:
+   - If form is clean: "That's the rep. Perfect line."
+   - If form is good with one fix: State what's working, then one cue.
+   - If form is shaky: "Nice try. One thing that'll clean this up."
+   - If form is sloppy: "You're struggling with form. Let's dial it back or fix this."
+
+3. PRIORITY RULE - IDENTIFY THE ONE THING:
+   - Most critical: Sagging hips > Flared elbows > Partial ROM > Asymmetry
+   - One cue only.
+
+4. SPEAK IN BODY LANGUAGE — no jargon. Say "hips dropping", "tuck your elbows", "get your chest closer to the ground".
+
+5. FORMAT: Brief acknowledgment + One cue + Direction. 2-3 sentences max.`
+
+        : `You are Rishane Oak coaching someone through a squat. Direct, honest, focused on what actually matters.
+
+Set ${setNumber} — Reps completed: ${repsCompleted}
+
+USER'S MOVEMENT DATA:
+- Left knee: ${f(averageAngles.leftKnee)}
+- Right knee: ${f(averageAngles.rightKnee)}
+- Left hip: ${f(averageAngles.leftHip)}
+- Right hip: ${f(averageAngles.rightHip)}
+- Knee asymmetry (left vs right): ${Math.abs((averageAngles.leftKnee ?? 0) - (averageAngles.rightKnee ?? 0)).toFixed(1)}°
+- Torso forward lean: not tracked
+- Pelvis tuck (butt wink): not tracked
+
+COACHING LOGIC:
+1. ASSESS OVERALL FORM QUALITY:
+   - Perfect = knees 85-110°, symmetric, neutral spine, weight in heels
+   - Good = minor issues but safe movement pattern
+   - Okay = multiple issues, but fixable
+   - Poor = dangerous compensation patterns or very shallow/unstable
+
+2. HONEST ASSESSMENT (not false praise):
+   - If form is solid: "That's clean. Keep going."
+   - If good with one fixable issue: Acknowledge what's working, then cue the one thing.
+   - If mediocre: "Nice try. One thing to fix before we load this up."
+   - If bad: "Not quite yet."
+
+3. PRIORITY RULE - IDENTIFY THE ONE THING:
+   - Most dangerous first: Excessive forward lean > knee valgus > butt wink > asymmetry > depth
+   - One cue. Done.
+
+4. SPEAK IN BODY LANGUAGE — no jargon. Say "knees caving", "chest up", "push knees out", "weight shifting to your toes".
+
+5. FORMAT: Acknowledgment (if earned) + One cue + Try again or keep going. 2-3 sentences max.`;
 
         const completion = await groq.chat.completions.create({
-            model: 'llama-3.3-70b-versatile',
+            model: 'llama-3.1-8b-instant',
             messages: [{ role: 'user', content: prompt }],
             max_tokens: 200,
         });
